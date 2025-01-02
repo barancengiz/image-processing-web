@@ -1,0 +1,7 @@
+requests
+fastapi
+uvicorn
+python-multipart
+pillow
+opencv-python
+scikit-learn
