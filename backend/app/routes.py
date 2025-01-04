@@ -38,11 +38,12 @@ async def convert_to_dmc_colors_route(file: UploadFile = File(...)):
         f.write(contents)
 
     try:
-        dmc_image_path, dmc_colors_used = convert_to_dmc(temp_file)
+        dmc_image_path, dmc_nos, hex_values = convert_to_dmc(temp_file)
         return {
             "message": "Image converted to DMC colors successfully",
             "image_url": f"http://127.0.0.1:8000/{dmc_image_path}",
-            "dmc_colors": dmc_colors_used,
+            "dmc_nos": dmc_nos,
+            "hex_values": hex_values
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

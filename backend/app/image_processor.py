@@ -23,15 +23,13 @@ def find_closest_dmc_color(rgb_color: tuple[int, int, int]) -> dict:
     distances = np.linalg.norm(dmc_palette_rgb - rgb_color, axis=1)
     # Return the index of the closest color
     idx = np.argmin(distances)
-    info = {"index": idx, "dmc_color": dmc_palette["DMC_COLOR"][idx], "rgb": dmc_palette_rgb[idx], }
+    info = {"index": idx, "dmc_no": dmc_palette["DMC_COLOR"][idx], "rgb": dmc_palette_rgb[idx], "hex": dmc_palette["RGB_COLOR"][idx]}
     return info
 
-def convert_image_to_dmc_colors(img: np.ndarray) -> tuple[np.ndarray, set[str]]:
+def convert_image_to_dmc_colors(img: np.ndarray) -> tuple[np.ndarray, set[str], set[str]]:
     time_start = time.time()
     # Load DMC color palette if not already loaded
     dmc_palette, dmc_palette_rgb = load_dmc_palette()
-    load_time = time.time() - time_start
-    print(f"Loading DMC palette took {load_time * 1000:.2f} ms")
     width, height = img.shape[:2]
     # Convert image to RGB
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -42,23 +40,21 @@ def convert_image_to_dmc_colors(img: np.ndarray) -> tuple[np.ndarray, set[str]]:
     img = img.reshape(-1, 3)
     # Find closest DMC color for each pixel
     intervals = 1000
+    # Save used unique colors and their hex values
     used_dmc_colors = set()
-    time_interval = time.time()
     for i, rgb_color in enumerate(img):
         dmc_info = find_closest_dmc_color(tuple(rgb_color))
         img[i] = dmc_info["rgb"]
-        used_dmc_colors.add(dmc_info["dmc_color"])
-        if i % intervals == 0:
-            time_elapsed = time.time() - time_interval
-            print(f"Processed {i} pixels in {time_elapsed:.2f} seconds")
-            time_interval = time.time()
+        used_dmc_colors.add((dmc_info["dmc_no"], dmc_info["hex"]))
     time_elapsed = time.time() - time_start
     print(f"Processed {len(img)} pixels in {time_elapsed:.2} seconds")
     # Reshape to original image dimensions
     img = img.reshape(width, height, 3)
     # Convert image back to BGR
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-    return img, used_dmc_colors
+    # Split set of tuples into two sets
+    dmc_nos, hex_values = zip(*used_dmc_colors)
+    return img, dmc_nos, hex_values
 
 def process_image(file_path: str, operation: str) -> str:
     output_path = f"processed/{operation}_{file_path}"
@@ -81,9 +77,9 @@ def process_image(file_path: str, operation: str) -> str:
         raise ValueError(f"Unsupported operation: {operation}. Supported operations: 'resize', 'grayscale'")
     return output_path
 
-def convert_to_dmc(file_path: str) -> tuple[str, set[str]]:
+def convert_to_dmc(file_path: str) -> tuple[str, set[str], set[str]]:
     img = cv2.imread(file_path)
-    img, dmc_colors = convert_image_to_dmc_colors(img)
+    img, dmc_nos, hex_values = convert_image_to_dmc_colors(img)
     dmc_image_path = f"processed/dmc_{file_path}"
     cv2.imwrite(dmc_image_path, img)
-    return dmc_image_path, dmc_colors
+    return dmc_image_path, dmc_nos, hex_values
