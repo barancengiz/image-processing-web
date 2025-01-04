@@ -11,6 +11,7 @@
         <select id="operation" v-model="operation">
           <option value="resize">Resize</option>
           <option value="grayscale">Grayscale</option>
+          <option value="dmc-colors">Convert to DMC Colors</option>
         </select>
       </div>
       <button type="submit">Process Image</button>
@@ -18,6 +19,14 @@
     <div v-if="processedImage">
       <h2>Processed Image:</h2>
       <img :src="processedImage" alt="Processed" />
+    </div>
+    <div v-if="dmcColors">
+      <h2>DMC Colors Used:</h2>
+      <ul>
+        <li v-for="(name, code) in dmcColors" :key="code">
+          {{ name }}
+        </li>
+      </ul>
     </div>
   </div>
 </template>
@@ -48,13 +57,24 @@ export default {
       formData.append("operation", this.operation);
 
       try {
-        const response = await axios.post("http://127.0.0.1:8000/process/", formData, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        });
-        // Get path of the processed image from the response
-        this.processedImage = response.data.file_path;
+        if (this.operation === "dmc-colors") {
+          const response = await axios.post("http://127.0.0.1:8000/dmc-colors/", formData, {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          });
+          this.processedImage = response.data.image_url; // DMC-converted image
+          this.dmcColors = response.data.dmc_colors; // List of DMC colors
+        } else {
+          formData.append("operation", this.operation);
+          const response = await axios.post("http://127.0.0.1:8000/process/", formData, {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          });
+          this.processedImage = response.data.image_url;
+          this.dmcColors = null;
+        }
       } catch (error) {
         console.error("Error processing the image:", error);
         alert("Failed to process the image.");
