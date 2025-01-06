@@ -20,10 +20,10 @@
       <h2>Processed Image:</h2>
       <img :src="processedImage" alt="Processed" />
     </div>
-    <div v-if="dmcNos">
+    <div v-if="dmcCodes">
       <h2>DMC Colors Used:</h2>
       <div style="display: flex; flex-wrap: wrap;">
-        <div v-for="(name, index) in dmcNos" :key="index"
+        <div v-for="(name, index) in dmcCodes" :key="index"
           style="display: flex; align-items: center; margin: 10px; width: 20%;">
           <span :style="{
             display: 'inline-block',
@@ -72,7 +72,7 @@ export default {
             },
           });
           this.processedImage = response.data.image_url; // DMC-converted image
-          this.dmcNos = response.data.dmc_nos; // List of DMC colors
+          this.dmcCodes = response.data.dmc_codes; // List of DMC color codes
           this.hexValues = response.data.hex_values; // Corresponding hex values
         } else {
           formData.append("operation", this.operation);
@@ -82,7 +82,7 @@ export default {
             },
           });
           this.processedImage = response.data.image_url;
-          this.dmcNos = null;
+          this.dmcCodes = null;
           this.hexValues = null;
         }
       } catch (error) {

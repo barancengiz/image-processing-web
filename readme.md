@@ -42,6 +42,19 @@ docker-compose up
     ```
     {
         "message": "Image processed successfully",
-        "image_url": "processed/<filename>"
+        "image_url": "<url>/processed/<filename>"
+    }
+    ```
+#### POST /dmc-colors/
+* Description: Recolors given image using DMC colors
+* Request:
+    * file: The image file to process (multipart form-data).
+* Response:
+    ```
+    {
+        "message": "Image processed successfully",
+        "image_url": "<url>/processed/<filename>",
+        "dmc_codes": "list[text]",  // unique dmc color codes
+        "hex_values": "list[text]"  // hex values of used colors
     }
     ```
