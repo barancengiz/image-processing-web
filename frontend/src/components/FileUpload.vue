@@ -72,7 +72,7 @@ export default {
             },
           });
           this.processedImage = response.data.image_url; // DMC-converted image
-          this.dmcNos = response.data.dmc_nos; // List of DMC colors
+          this.dmcNos = response.data.dmc_codes; // List of DMC color codes
           this.hexValues = response.data.hex_values; // Corresponding hex values
         } else {
           formData.append("operation", this.operation);

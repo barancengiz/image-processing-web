@@ -1,60 +1,80 @@
 import cv2
 import numpy as np
 import pandas as pd
+import sqlite3
 from functools import lru_cache
 import time
 
-def load_dmc_palette() -> tuple[pd.DataFrame, np.ndarray]:
-    dmc_palette = pd.read_csv("/app/assets/dmc_colors.csv", header=0)
-    if 'RGB_COLOR' not in dmc_palette.columns:
-        raise ValueError("The CSV file does not contain 'RGB_COLOR' column")
-    rgb_colors = dmc_palette['RGB_COLOR']
-    # Third column is in #hex values, convert to RGB
-    dmc_palette["R"] = rgb_colors.apply(lambda x: int(x[1:3], 16))
-    dmc_palette["G"] = rgb_colors.apply(lambda x: int(x[3:5], 16))
-    dmc_palette["B"] = rgb_colors.apply(lambda x: int(x[5:7], 16))
-    dmc_palette_rgb = np.array(dmc_palette[["R", "G", "B"]])
-    return dmc_palette, dmc_palette_rgb
+def load_all_dmc_colors() -> tuple[list[str], np.ndarray, list[str]]:
+    conn = sqlite3.connect("/app/assets/dmc_colors.db")
+    cursor = conn.cursor()
+    query = "SELECT DMC_CODE, R, G, B, HEX FROM dmc_colors"
+    cursor.execute(query)
+    rows = cursor.fetchall()
+    # Create three arrays with DMC codes, RGB values, and HEX values
+    dmc_codes = [row[0] for row in rows]
+    dmc_colors = np.array([[row[1], row[2], row[3]] for row in rows])
+    hex_values = [row[4] for row in rows]
+    conn.close()
+    return dmc_codes, dmc_colors, hex_values
 
-@lru_cache(maxsize=1024)  # Cache the results of this function
-def find_closest_dmc_color(rgb_color: tuple[int, int, int]) -> dict:
-    dmc_palette, dmc_palette_rgb = load_dmc_palette()
-    # Calculate Euclidean distance to each DMC color
-    distances = np.linalg.norm(dmc_palette_rgb - rgb_color, axis=1)
-    # Return the index of the closest color
-    idx = np.argmin(distances)
-    info = {"index": idx, "dmc_no": dmc_palette["DMC_COLOR"][idx], "rgb": dmc_palette_rgb[idx], "hex": dmc_palette["RGB_COLOR"][idx]}
-    return info
+def load_specific_dmc_colors(dmc_codes: list[str]) -> tuple[list[str], np.ndarray]:
+    conn = sqlite3.connect("/app/assets/dmc_colors.db")
+    cursor = conn.cursor()
+    placeholders = ", ".join("?" * len(dmc_codes))
+    query = f"SELECT DMC_CODE, R, G, B, HEX FROM dmc_colors WHERE DMC_COLOR IN ({placeholders})"
+    cursor.execute(query, dmc_codes)
+    rows = cursor.fetchall()
+    # Create three arrays with DMC codes, RGB values, and HEX values
+    dmc_codes = [row[0] for row in rows]
+    dmc_colors = np.array([[row[1], row[2], row[3]] for row in rows])
+    hex_values = [row[4] for row in rows]
+    conn.close()
+    return dmc_codes, dmc_colors, hex_values
+
+def rgb_to_hsv(rgb: tuple[int, int, int]) -> tuple[int, int, int]:
+    rgb_array = np.array(rgb).astype(np.uint8).reshape(1, 1, 3)
+    hsv_array = cv2.cvtColor(rgb_array, cv2.COLOR_RGB2HSV)
+    return tuple(hsv_array[0, 0])
+
 
 def convert_image_to_dmc_colors(img: np.ndarray) -> tuple[np.ndarray, set[str], set[str]]:
+    @lru_cache(maxsize=1024)  # Cache the results of this function
+    def find_closest_dmc_color_idx(selected_rgb_color: tuple[int, int, int]) -> int:
+        # Calculate Euclidean distance to each DMC color
+        distances = np.linalg.norm(dmc_colors - np.array(selected_rgb_color), axis=1)
+        # Return the index of the closest color
+        return np.argmin(distances)
     time_start = time.time()
-    # Load DMC color palette if not already loaded
-    dmc_palette, dmc_palette_rgb = load_dmc_palette()
     width, height = img.shape[:2]
     # Convert image to RGB
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     # Quantize colors (Cuts down processing time, utilizes cache better)
     img = img // 32 * 32
-
     # Flatten image to a list of RGB colors
     img = img.reshape(-1, 3)
-    # Find closest DMC color for each pixel
-    intervals = 1000
+
+    # Unique DMC numbers and their numeric values
+    dmc_codes, dmc_colors, hex_values = load_all_dmc_colors()
     # Save used unique colors and their hex values
     used_dmc_colors = set()
+    # Find closest DMC color for each pixel
     for i, rgb_color in enumerate(img):
-        dmc_info = find_closest_dmc_color(tuple(rgb_color))
-        img[i] = dmc_info["rgb"]
-        used_dmc_colors.add((dmc_info["dmc_no"], dmc_info["hex"]))
+        color_idx = find_closest_dmc_color_idx(tuple(rgb_color))
+        img[i] = dmc_colors[color_idx]
+        hsv_value = rgb_to_hsv(dmc_colors[color_idx])
+        used_dmc_colors.add((dmc_codes[color_idx], hsv_value, hex_values[color_idx]))
     time_elapsed = time.time() - time_start
     print(f"Processed {len(img)} pixels in {time_elapsed:.2} seconds")
     # Reshape to original image dimensions
     img = img.reshape(width, height, 3)
     # Convert image back to BGR
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    # Sort set by hue values
+    used_dmc_colors = sorted(used_dmc_colors, key=lambda x: x[1][0])
     # Split set of tuples into two sets
-    dmc_nos, hex_values = zip(*used_dmc_colors)
-    return img, dmc_nos, hex_values
+    dmc_codes, _, hex_values = zip(*used_dmc_colors)
+    return img, dmc_codes, hex_values
 
 def process_image(file_path: str, operation: str) -> str:
     output_path = f"processed/{operation}_{file_path}"
@@ -79,7 +99,7 @@ def process_image(file_path: str, operation: str) -> str:
 
 def convert_to_dmc(file_path: str) -> tuple[str, set[str], set[str]]:
     img = cv2.imread(file_path)
-    img, dmc_nos, hex_values = convert_image_to_dmc_colors(img)
+    img, dmc_codes, hex_values = convert_image_to_dmc_colors(img)
     dmc_image_path = f"processed/dmc_{file_path}"
     cv2.imwrite(dmc_image_path, img)
-    return dmc_image_path, dmc_nos, hex_values
+    return dmc_image_path, dmc_codes, hex_values
