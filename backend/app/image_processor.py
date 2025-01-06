@@ -22,7 +22,7 @@ def load_specific_dmc_colors(dmc_codes: list[str]) -> tuple[list[str], np.ndarra
     conn = sqlite3.connect("/app/assets/dmc_colors.db")
     cursor = conn.cursor()
     placeholders = ", ".join("?" * len(dmc_codes))
-    query = f"SELECT DMC_CODE, R, G, B, HEX FROM dmc_colors WHERE DMC_COLOR IN ({placeholders})"
+    query = f"SELECT DMC_CODE, R, G, B, HEX FROM dmc_colors WHERE DMC_CODE IN ({placeholders})"
     cursor.execute(query, dmc_codes)
     rows = cursor.fetchall()
     # Create three arrays with DMC codes, RGB values, and HEX values
@@ -38,7 +38,7 @@ def rgb_to_hsv(rgb: tuple[int, int, int]) -> tuple[int, int, int]:
     return tuple(hsv_array[0, 0])
 
 
-def convert_image_to_dmc_colors(img: np.ndarray) -> tuple[np.ndarray, set[str], set[str]]:
+def convert_image_to_dmc_colors(img: np.ndarray, selected_dmc_codes: list[str] = None) -> tuple[np.ndarray, set[str], set[str]]:
     @lru_cache(maxsize=1024)  # Cache the results of this function
     def find_closest_dmc_color_idx(selected_rgb_color: tuple[int, int, int]) -> int:
         # Calculate Euclidean distance to each DMC color
@@ -54,8 +54,9 @@ def convert_image_to_dmc_colors(img: np.ndarray) -> tuple[np.ndarray, set[str], 
     # Flatten image to a list of RGB colors
     img = img.reshape(-1, 3)
 
-    # Unique DMC numbers and their numeric values
-    dmc_codes, dmc_colors, hex_values = load_all_dmc_colors()
+    # Get unique DMC numbers and their numeric values
+    dmc_codes, dmc_colors, hex_values = load_all_dmc_colors() if selected_dmc_codes is None else load_specific_dmc_colors(selected_dmc_codes)
+
     # Save used unique colors and their hex values
     used_dmc_colors = set()
     # Find closest DMC color for each pixel
@@ -97,9 +98,9 @@ def process_image(file_path: str, operation: str) -> str:
         raise ValueError(f"Unsupported operation: {operation}. Supported operations: 'resize', 'grayscale'")
     return output_path
 
-def convert_to_dmc(file_path: str) -> tuple[str, set[str], set[str]]:
+def convert_to_dmc(file_path: str, selected_dmc_codes: list[str] = None) -> tuple[str, list[str], list[str]]:
     img = cv2.imread(file_path)
-    img, dmc_codes, hex_values = convert_image_to_dmc_colors(img)
+    img, dmc_codes, hex_values = convert_image_to_dmc_colors(img, selected_dmc_codes)
     dmc_image_path = f"processed/dmc_{file_path}"
     cv2.imwrite(dmc_image_path, img)
     return dmc_image_path, dmc_codes, hex_values

@@ -12,7 +12,22 @@
           <option value="resize">Resize</option>
           <option value="grayscale">Grayscale</option>
           <option value="dmc-colors">Convert to DMC Colors</option>
+          <option value="custom-dmc-colors">Recreate with Selected DMC Colors</option>
         </select>
+      </div>
+      <div v-if="operation === 'custom-dmc-colors'">
+        <h3>Selected DMC Colors</h3>
+        <ul>
+          <li v-for="(color, index) in selectedDmcColors" :key="index">
+            {{ color.name }} (Code: {{ color.code }})
+            <button type="button" @click="removeDmcColor(index)">Remove</button>
+          </li>
+        </ul>
+        <div>
+          <label for="newDmcColor">Add DMC Color Code:</label>
+          <input type="text" id="newDmcColor" v-model="newDmcColor" />
+          <button type="button" @click="addDmcColor">Add</button>
+        </div>
       </div>
       <button type="submit">Process Image</button>
     </form>
@@ -48,11 +63,28 @@ export default {
       file: null,
       operation: "resize",
       processedImage: null,
+      dmcColors: null,
+      selectedDmcColors: [],
+      newDmcColor: "",
     };
   },
   methods: {
     handleFileChange(event) {
       this.file = event.target.files[0];
+    },
+    addDmcColor() {
+      // Replace this with actual validation for DMC codes if needed
+      if (this.newDmcColor.trim() === "") return;
+      const existing = this.selectedDmcColors.find(
+        (color) => color.code === this.newDmcColor
+      );
+      if (!existing) {
+        this.selectedDmcColors.push({ name: "Custom", code: this.newDmcColor });
+        this.newDmcColor = "";
+      }
+    },
+    removeDmcColor(index) {
+      this.selectedDmcColors.splice(index, 1);
     },
     async submitForm() {
       if (!this.file) {
@@ -62,8 +94,6 @@ export default {
 
       const formData = new FormData();
       formData.append("file", this.file);
-      formData.append("operation", this.operation);
-
       try {
         if (this.operation === "dmc-colors") {
           const response = await axios.post("http://127.0.0.1:8000/dmc-colors/", formData, {
@@ -72,6 +102,23 @@ export default {
             },
           });
           this.processedImage = response.data.image_url; // DMC-converted image
+          this.dmcCodes = response.data.dmc_codes; // List of DMC color codes
+          this.hexValues = response.data.hex_values; // Corresponding hex values
+        } else if (this.operation === "custom-dmc-colors") {
+          if (this.selectedDmcColors.length === 0) {
+            alert("Please add at least one DMC color code.");
+            return;
+          }
+          formData.append("dmc_colors", this.selectedDmcColors.map((color) => color.code).join(","));
+          const selectedDmcCodes = this.selectedDmcColors.map((color) => color.code);
+          const response = await axios.post(
+            "http://127.0.0.1:8000/custom-dmc-colors/",
+            formData,
+            {
+              headers: { "Content-Type": "multipart/form-data" },
+            }
+          );
+          this.processedImage = response.data.image_url;
           this.dmcCodes = response.data.dmc_codes; // List of DMC color codes
           this.hexValues = response.data.hex_values; // Corresponding hex values
         } else {
