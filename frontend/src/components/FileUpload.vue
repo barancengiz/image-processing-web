@@ -11,6 +11,7 @@
         <select id="operation" v-model="operation">
           <option value="resize">Resize</option>
           <option value="grayscale">Grayscale</option>
+          <option value="dmc-colors">Convert to DMC Colors</option>
         </select>
       </div>
       <button type="submit">Process Image</button>
@@ -18,6 +19,22 @@
     <div v-if="processedImage">
       <h2>Processed Image:</h2>
       <img :src="processedImage" alt="Processed" />
+    </div>
+    <div v-if="dmcNos">
+      <h2>DMC Colors Used:</h2>
+      <div style="display: flex; flex-wrap: wrap;">
+        <div v-for="(name, index) in dmcNos" :key="index"
+          style="display: flex; align-items: center; margin: 10px; width: 20%;">
+          <span :style="{
+            display: 'inline-block',
+            width: '20px',
+            height: '20px',
+            backgroundColor: hexValues[index],
+            marginRight: '10px'
+          }"></span>
+          {{ name }}
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -48,13 +65,26 @@ export default {
       formData.append("operation", this.operation);
 
       try {
-        const response = await axios.post("http://127.0.0.1:8000/process/", formData, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        });
-        // Get path of the processed image from the response
-        this.processedImage = response.data.file_path;
+        if (this.operation === "dmc-colors") {
+          const response = await axios.post("http://127.0.0.1:8000/dmc-colors/", formData, {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          });
+          this.processedImage = response.data.image_url; // DMC-converted image
+          this.dmcNos = response.data.dmc_nos; // List of DMC colors
+          this.hexValues = response.data.hex_values; // Corresponding hex values
+        } else {
+          formData.append("operation", this.operation);
+          const response = await axios.post("http://127.0.0.1:8000/process/", formData, {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          });
+          this.processedImage = response.data.image_url;
+          this.dmcNos = null;
+          this.hexValues = null;
+        }
       } catch (error) {
         console.error("Error processing the image:", error);
         alert("Failed to process the image.");
