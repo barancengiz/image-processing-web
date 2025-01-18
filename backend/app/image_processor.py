@@ -41,7 +41,7 @@ def rgb_to_hsv(rgb: tuple[int, int, int]) -> tuple[int, int, int]:
     hsv_array = cv2.cvtColor(rgb_array, cv2.COLOR_RGB2HSV)
     return tuple(hsv_array[0, 0])
 
-def convert_image_to_dmc_colors(img: np.ndarray, selected_dmc_codes: list[str] = None, n_colors: int = 50) -> tuple[np.ndarray, set[str], set[str]]:
+def convert_image_to_dmc_colors(img: np.ndarray, selected_dmc_codes: list[str] = None, n_colors: int = 50, image_width: int = 1000, use_grid_filter: bool = False) -> tuple[np.ndarray, set[str], set[str]]:
     @lru_cache(maxsize=2048)  # Cache the results of this function
     def find_closest_dmc_color_idx(selected_rgb_color: tuple[int, int, int]) -> int:
         # Calculate Euclidean distance to each DMC color
@@ -50,6 +50,14 @@ def convert_image_to_dmc_colors(img: np.ndarray, selected_dmc_codes: list[str] =
         return np.argmin(distances)
     time_start = time.time()
     width, height = img.shape[:2]
+    # Bilateral filter to smooth image
+    img = cv2.bilateralFilter(img, 5, 75, 75)
+    if use_grid_filter:
+        img = cv2.medianBlur(img, 3)        
+    # Resize image
+    img = cv2.resize(img, (image_width, int(image_width * height / width)), interpolation=cv2.INTER_NEAREST)
+    width, height = img.shape[:2]
+
     # Convert image to RGB
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     # Quantize colors (Cuts down processing time, utilizes cache better)
@@ -78,6 +86,9 @@ def convert_image_to_dmc_colors(img: np.ndarray, selected_dmc_codes: list[str] =
     img = img.reshape(width, height, 3)
     # Convert image back to BGR
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    # Resize into displayable size
+    display_width = 1024
+    img = cv2.resize(img, (display_width, int(display_width * height / width)), interpolation=cv2.INTER_NEAREST)
     # Sort set by hue values
     used_dmc_colors = sorted(used_dmc_colors, key=lambda x: x[1][0])
     # Split set of tuples into two sets
@@ -106,9 +117,9 @@ def process_image(file_path: str, operation: str) -> str:
         raise ValueError(f"Unsupported operation: {operation}. Supported operations: 'resize', 'grayscale'")
     return output_path
 
-def convert_to_dmc(file_path: str, selected_dmc_codes: list[str] = None, n_colors: int = 50) -> tuple[str, list[str], list[str]]:
+def convert_to_dmc(file_path: str, selected_dmc_codes: list[str] = None, n_colors: int = 50, image_width: int = 1000, use_grid_filter: bool = False) -> tuple[str, list[str], list[str]]:
     img = cv2.imread(file_path)
-    img, dmc_codes, hex_values = convert_image_to_dmc_colors(img, selected_dmc_codes, n_colors)
+    img, dmc_codes, hex_values = convert_image_to_dmc_colors(img, selected_dmc_codes, n_colors, image_width, use_grid_filter)
     dmc_image_path = f"processed/dmc_{file_path}"
     cv2.imwrite(dmc_image_path, img)
     return dmc_image_path, dmc_codes, hex_values

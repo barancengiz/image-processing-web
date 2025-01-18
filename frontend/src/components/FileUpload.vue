@@ -27,6 +27,16 @@
         />
         <span class="input-hint">(2-50 colors)</span>
       </div>
+      <div v-if="operation === 'dmc-colors' || operation === 'custom-dmc-colors'">
+        <label for="Image width">Cross-stitch image width (in pixels)</label>
+        <input type="number" id="imageWidth" v-model.number="imageWidth" min="5" max="1000" step="1" />
+        <span class="input-hint">(Use this to make the image more pixelated)</span>
+      </div>
+      <div v-if="operation === 'dmc-colors' || operation === 'custom-dmc-colors'">
+        <label for="useGridFilter">Use Grid Filter</label>
+        <input type="checkbox" id="useGridFilter" v-model="useGridFilter" />
+        <span class="input-hint">(Remove grid lines)</span>
+      </div>
       <div v-if="operation === 'custom-dmc-colors'">
         <h3>Selected DMC Colors</h3>
         <ul>
@@ -79,6 +89,8 @@ export default {
       selectedDmcColors: [],
       newDmcColor: "",
       maxColors: 10,
+      imageWidth: 100,
+      useGridFilter: false,
     };
   },
   methods: {
@@ -114,6 +126,8 @@ export default {
       try {
         if (this.operation === "dmc-colors") {
           formData.append("max_colors", this.maxColors);
+          formData.append("image_width", this.imageWidth);
+          formData.append("use_grid_filter", this.useGridFilter);
           const response = await axios.post("http://127.0.0.1:8000/dmc-colors/", formData, {
             headers: {
               "Content-Type": "multipart/form-data",
@@ -132,6 +146,8 @@ export default {
             return;
           }
           formData.append("max_colors", this.maxColors);
+          formData.append("image_width", this.imageWidth);
+          formData.append("use_grid_filter", this.useGridFilter);
           formData.append("dmc_colors", this.selectedDmcColors.map((color) => color.code).join(","));
           const selectedDmcCodes = this.selectedDmcColors.map((color) => color.code);
           const response = await axios.post(
@@ -144,6 +160,10 @@ export default {
           this.processedImage = response.data.image_url;
           this.dmcCodes = response.data.dmc_codes; // List of DMC color codes
           this.hexValues = response.data.hex_values; // Corresponding hex values
+          this.selectedDmcColors = response.data.dmc_codes.map((code) => ({
+            name: "Custom",
+            code,
+          }));
         } else {
           formData.append("operation", this.operation);
           const response = await axios.post("http://127.0.0.1:8000/process/", formData, {
