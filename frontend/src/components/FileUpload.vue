@@ -15,6 +15,18 @@
           <option value="custom-dmc-colors">Recreate with Selected DMC Colors</option>
         </select>
       </div>
+      <div v-if="operation === 'dmc-colors' || operation === 'custom-dmc-colors'">
+        <label for="colorCount">Maximum # of Colors:</label>
+        <input 
+          type="number" 
+          id="colorCount" 
+          v-model.number="maxColors" 
+          min="2" 
+          max="50" 
+          step="1"
+        />
+        <span class="input-hint">(2-50 colors)</span>
+      </div>
       <div v-if="operation === 'custom-dmc-colors'">
         <h3>Selected DMC Colors</h3>
         <ul>
@@ -33,7 +45,7 @@
     </form>
     <div v-if="processedImage">
       <h2>Processed Image:</h2>
-      <img :src="processedImage" alt="Processed" />
+      <img :src="processedImage" alt="Processed" class="processed-image" />
     </div>
     <div v-if="dmcCodes">
       <h2>DMC Colors Used:</h2>
@@ -66,6 +78,7 @@ export default {
       dmcColors: null,
       selectedDmcColors: [],
       newDmcColor: "",
+      maxColors: 10,
     };
   },
   methods: {
@@ -91,24 +104,34 @@ export default {
         alert("Please select a file.");
         return;
       }
+      // Clear the previous processed image
+      this.processedImage = null;
+      this.dmcCodes = null;
+      this.hexValues = null;
 
       const formData = new FormData();
       formData.append("file", this.file);
       try {
         if (this.operation === "dmc-colors") {
+          formData.append("max_colors", this.maxColors);
           const response = await axios.post("http://127.0.0.1:8000/dmc-colors/", formData, {
             headers: {
               "Content-Type": "multipart/form-data",
             },
           });
-          this.processedImage = response.data.image_url; // DMC-converted image
+          this.processedImage = `${response.data.image_url}?t=${Date.now()}`; // DMC-converted image w/ timestamp
           this.dmcCodes = response.data.dmc_codes; // List of DMC color codes
           this.hexValues = response.data.hex_values; // Corresponding hex values
+          this.selectedDmcColors = response.data.dmc_codes.map((code) => ({
+            name: "Custom",
+            code,
+          }));
         } else if (this.operation === "custom-dmc-colors") {
           if (this.selectedDmcColors.length === 0) {
             alert("Please add at least one DMC color code.");
             return;
           }
+          formData.append("max_colors", this.maxColors);
           formData.append("dmc_colors", this.selectedDmcColors.map((color) => color.code).join(","));
           const selectedDmcCodes = this.selectedDmcColors.map((color) => color.code);
           const response = await axios.post(
@@ -143,8 +166,25 @@ export default {
 
 <style>
 .upload-container {
-  max-width: 500px;
+  max-width: 90vw;
   margin: auto;
+
   text-align: center;
+  align-items: center;
+}
+
+.processed-image {
+  width: 60vw;
+  max-height: 60vh;
+  -ms-interpolation-mode: nearest-neighbor;
+  object-fit: contain;
+  margin: auto;
+  display: block;
+}
+
+.input-hint {
+  font-size: 0.8em;
+  color: #666;
+  margin-left: 8px;
 }
 </style>

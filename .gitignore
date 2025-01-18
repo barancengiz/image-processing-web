@@ -1,1 +1,5 @@
 backend/processed/*
+*.png
+*.jpg
+*.jpeg
+*.webp

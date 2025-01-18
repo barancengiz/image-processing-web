@@ -27,7 +27,7 @@ async def process_image_route(file: UploadFile = File(...), operation: str = For
     os.remove(temp_file)
 
 @router.post("/dmc-colors/")
-async def convert_to_dmc_colors_route(file: UploadFile = File(...)):
+async def convert_to_dmc_colors_route(file: UploadFile = File(...), max_colors: int = Form(...)):
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Invalid file type. Please upload an image.")
     
@@ -38,7 +38,7 @@ async def convert_to_dmc_colors_route(file: UploadFile = File(...)):
         f.write(contents)
 
     try:
-        dmc_image_path, dmc_codes, hex_values = convert_to_dmc(temp_file)
+        dmc_image_path, dmc_codes, hex_values = convert_to_dmc(temp_file, n_colors=max_colors)
         return {
             "message": "Image converted to DMC colors successfully",
             "image_url": f"http://127.0.0.1:8000/{dmc_image_path}",
@@ -51,7 +51,7 @@ async def convert_to_dmc_colors_route(file: UploadFile = File(...)):
     os.remove(temp_file)
 
 @router.post("/custom-dmc-colors/")
-async def convert_to_custom_dmc_colors_route(file: UploadFile = File(...), dmc_colors: str = Form(...)):
+async def convert_to_custom_dmc_colors_route(file: UploadFile = File(...), dmc_colors: str = Form(...), max_colors: int = Form(...)):
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Invalid file type. Please upload an image.")
     
@@ -63,7 +63,7 @@ async def convert_to_custom_dmc_colors_route(file: UploadFile = File(...), dmc_c
     selected_dmc_colors = dmc_colors.split(",")
     print(selected_dmc_colors)
     try:
-        dmc_image_path, dmc_codes, hex_values = convert_to_dmc(temp_file, selected_dmc_colors)
+        dmc_image_path, dmc_codes, hex_values = convert_to_dmc(temp_file, selected_dmc_colors, max_colors)
         return {
             "message": "Image converted to custom DMC colors successfully",
             "image_url": f"http://127.0.0.1:8000/{dmc_image_path}",
