@@ -69,7 +69,7 @@
             backgroundColor: hexValues[index],
             marginRight: '10px'
           }"></span>
-          {{ name }}
+          DMC-{{ name }} (x{{ colorCounts[index] }})
         </div>
       </div>
     </div>
@@ -120,6 +120,7 @@ export default {
       this.processedImage = null;
       this.dmcCodes = null;
       this.hexValues = null;
+      this.colorCounts = null;
 
       const formData = new FormData();
       formData.append("file", this.file);
@@ -136,6 +137,7 @@ export default {
           this.processedImage = `${response.data.image_url}?t=${Date.now()}`; // DMC-converted image w/ timestamp
           this.dmcCodes = response.data.dmc_codes; // List of DMC color codes
           this.hexValues = response.data.hex_values; // Corresponding hex values
+          this.colorCounts = response.data.color_counts; // Number of times each DMC color is used
           this.selectedDmcColors = response.data.dmc_codes.map((code) => ({
             name: "Custom",
             code,
@@ -160,6 +162,7 @@ export default {
           this.processedImage = response.data.image_url;
           this.dmcCodes = response.data.dmc_codes; // List of DMC color codes
           this.hexValues = response.data.hex_values; // Corresponding hex values
+          this.colorCounts = response.data.color_counts; // Number of times each DMC color is used
           this.selectedDmcColors = response.data.dmc_codes.map((code) => ({
             name: "Custom",
             code,
@@ -174,6 +177,7 @@ export default {
           this.processedImage = response.data.image_url;
           this.dmcCodes = null;
           this.hexValues = null;
+          this.colorCounts = null;
         }
       } catch (error) {
         console.error("Error processing the image:", error);

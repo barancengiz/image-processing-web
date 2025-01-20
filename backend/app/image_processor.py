@@ -72,6 +72,8 @@ def convert_image_to_dmc_colors(img: np.ndarray, selected_dmc_codes: list[str] =
     # Save used unique colors and their hex values
     used_dmc_colors = set()
     used_color_idxs = set()
+    # Count the number of times each DMC color is used
+    color_counts = {}
     # Find closest DMC color for each pixel
     for i, rgb_color in enumerate(img):
         color_idx = find_closest_dmc_color_idx(tuple(rgb_color))
@@ -80,6 +82,12 @@ def convert_image_to_dmc_colors(img: np.ndarray, selected_dmc_codes: list[str] =
             used_color_idxs.add(color_idx)
             hsv_value = rgb_to_hsv(dmc_colors[color_idx])
             used_dmc_colors.add((dmc_codes[color_idx], hsv_value, hex_values[color_idx]))
+            color_counts[dmc_codes[color_idx]] = 1
+        else:
+            color_counts[dmc_codes[color_idx]] += 1
+    # Add the number of times each DMC color is used to the set of used DMC colors
+    # TODO: This can be optimized
+    used_dmc_colors = [(dmc_codes[color_idx], hsv_value, hex_values[color_idx], color_counts[dmc_codes[color_idx]]) for color_idx in used_color_idxs]
     time_elapsed = time.time() - time_start
     print(f"Processed {len(img)} pixels in {time_elapsed:.2} seconds")
     # Reshape to original image dimensions
@@ -92,8 +100,8 @@ def convert_image_to_dmc_colors(img: np.ndarray, selected_dmc_codes: list[str] =
     # Sort set by hue values
     used_dmc_colors = sorted(used_dmc_colors, key=lambda x: x[1][0])
     # Split set of tuples into two sets
-    dmc_codes, _, hex_values = zip(*used_dmc_colors)
-    return img, dmc_codes, hex_values
+    dmc_codes, _, hex_values, color_counts = zip(*used_dmc_colors)
+    return img, dmc_codes, hex_values, color_counts
 
 def process_image(file_path: str, operation: str) -> str:
     output_path = f"processed/{operation}_{file_path}"
@@ -119,7 +127,7 @@ def process_image(file_path: str, operation: str) -> str:
 
 def convert_to_dmc(file_path: str, selected_dmc_codes: list[str] = None, n_colors: int = 50, image_width: int = 1000, use_grid_filter: bool = False) -> tuple[str, list[str], list[str]]:
     img = cv2.imread(file_path)
-    img, dmc_codes, hex_values = convert_image_to_dmc_colors(img, selected_dmc_codes, n_colors, image_width, use_grid_filter)
+    img, dmc_codes, hex_values, color_counts = convert_image_to_dmc_colors(img, selected_dmc_codes, n_colors, image_width, use_grid_filter)
     dmc_image_path = f"processed/dmc_{file_path}"
     cv2.imwrite(dmc_image_path, img)
-    return dmc_image_path, dmc_codes, hex_values
+    return dmc_image_path, dmc_codes, hex_values, color_counts

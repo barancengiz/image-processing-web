@@ -43,12 +43,13 @@ async def convert_to_dmc_colors_route(file: UploadFile = File(...), max_colors: 
         f.write(contents)
 
     try:
-        dmc_image_path, dmc_codes, hex_values = convert_to_dmc(temp_file, n_colors=max_colors, image_width=image_width, use_grid_filter=use_grid_filter)
+        dmc_image_path, dmc_codes, hex_values, color_counts = convert_to_dmc(temp_file, n_colors=max_colors, image_width=image_width, use_grid_filter=use_grid_filter)
         return {
             "message": "Image converted to DMC colors successfully",
             "image_url": f"http://127.0.0.1:8000/{dmc_image_path}",
             "dmc_codes": dmc_codes,
-            "hex_values": hex_values
+            "hex_values": hex_values,
+            "color_counts": color_counts
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -71,12 +72,13 @@ async def convert_to_custom_dmc_colors_route(file: UploadFile = File(...), dmc_c
     selected_dmc_colors = dmc_colors.split(",")
     print(selected_dmc_colors)
     try:
-        dmc_image_path, dmc_codes, hex_values = convert_to_dmc(temp_file, selected_dmc_colors, max_colors, image_width, use_grid_filter)
+        dmc_image_path, dmc_codes, hex_values, color_counts = convert_to_dmc(temp_file, selected_dmc_colors, max_colors, image_width, use_grid_filter)
         return {
             "message": "Image converted to custom DMC colors successfully",
             "image_url": f"http://127.0.0.1:8000/{dmc_image_path}",
             "dmc_codes": dmc_codes,
-            "hex_values": hex_values
+            "hex_values": hex_values,
+            "color_counts": color_counts
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
