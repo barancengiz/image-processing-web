@@ -1,6 +1,6 @@
 from fastapi import APIRouter, File, UploadFile, HTTPException, Form
 from app.image_processor import process_image, convert_to_dmc
-
+import os
 router = APIRouter()
 
 @router.post("/process/")
@@ -8,6 +8,8 @@ async def process_image_route(file: UploadFile = File(...), operation: str = For
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Invalid file type. Please upload an image.")
     
+    check_filesize(file)
+
     # Save uploaded image temporarily
     contents = await file.read()
     temp_file = f"temp_{file.filename}"
@@ -23,14 +25,17 @@ async def process_image_route(file: UploadFile = File(...), operation: str = For
             }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    # Delete temporary file
-    os.remove(temp_file)
+    finally:
+        # Delete temporary file
+        os.remove(temp_file)
 
 @router.post("/dmc-colors/")
 async def convert_to_dmc_colors_route(file: UploadFile = File(...), max_colors: int = Form(...), image_width: int = Form(...), use_grid_filter: bool = Form(...)):
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Invalid file type. Please upload an image.")
     
+    check_filesize(file)
+
     # Save uploaded image temporarily
     contents = await file.read()
     temp_file = f"temp_{file.filename}"
@@ -47,14 +52,17 @@ async def convert_to_dmc_colors_route(file: UploadFile = File(...), max_colors: 
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    # Delete temporary file
-    os.remove(temp_file)
+    finally:
+        # Delete temporary file
+        os.remove(temp_file)
 
 @router.post("/custom-dmc-colors/")
 async def convert_to_custom_dmc_colors_route(file: UploadFile = File(...), dmc_colors: str = Form(...), max_colors: int = Form(...), image_width: int = Form(...), use_grid_filter: bool = Form(...)):
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Invalid file type. Please upload an image.")
     
+    check_filesize(file)
+
     # Save uploaded image temporarily
     contents = await file.read()
     temp_file = f"temp_{file.filename}"
@@ -72,5 +80,10 @@ async def convert_to_custom_dmc_colors_route(file: UploadFile = File(...), dmc_c
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    # Delete temporary file
-    os.remove(temp_file)
+    finally:
+        # Delete temporary file
+        os.remove(temp_file)
+
+def check_filesize(file: UploadFile):
+    if file.size > 50 * 1024 * 1024:  # 50 MB
+        raise HTTPException(status_code=400, detail="File size too large. Please upload an image smaller than 50 MB.")
