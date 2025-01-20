@@ -177,7 +177,7 @@ export default {
         }
       } catch (error) {
         console.error("Error processing the image:", error);
-        alert("Failed to process the image.");
+        alert(error.response.data.detail);
       }
     },
   },
