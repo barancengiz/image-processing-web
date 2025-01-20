@@ -57,19 +57,21 @@
       <h2>Processed Image:</h2>
       <img :src="processedImage" alt="Processed" class="processed-image" />
     </div>
-    <div v-if="dmcCodes">
+    <div v-if="dmcCodes" class="dmc-colors-container">
       <h2>DMC Colors Used:</h2>
-      <div style="display: flex; flex-wrap: wrap;">
-        <div v-for="(name, index) in dmcCodes" :key="index"
-          style="display: flex; align-items: center; margin: 10px; width: 20%;">
-          <span :style="{
-            display: 'inline-block',
-            width: '20px',
-            height: '20px',
-            backgroundColor: hexValues[index],
-            marginRight: '10px'
-          }"></span>
-          DMC-{{ name }} (x{{ colorCounts[index] }})
+      <div class="dmc-colors-grid">
+        <div v-for="(name, index) in dmcCodes" 
+             :key="index"
+             class="dmc-color-item">
+          <div class="color-square"
+               :style="{
+                 backgroundColor: hexValues[index]
+               }">
+          </div>
+          <div class="color-info">
+            DMC-{{ name }} 
+            <span v-if="colorCounts">(x{{ colorCounts[index] }})</span>
+          </div>
         </div>
       </div>
     </div>
@@ -78,6 +80,7 @@
 
 <script>
 import axios from "axios";
+import { config } from "../config";
 
 export default {
   data() {
@@ -129,7 +132,7 @@ export default {
           formData.append("max_colors", this.maxColors);
           formData.append("image_width", this.imageWidth);
           formData.append("use_grid_filter", this.useGridFilter);
-          const response = await axios.post("http://127.0.0.1:8000/dmc-colors/", formData, {
+          const response = await axios.post(`${config.apiUrl}/dmc-colors`, formData, {
             headers: {
               "Content-Type": "multipart/form-data",
             },
@@ -152,13 +155,9 @@ export default {
           formData.append("use_grid_filter", this.useGridFilter);
           formData.append("dmc_colors", this.selectedDmcColors.map((color) => color.code).join(","));
           const selectedDmcCodes = this.selectedDmcColors.map((color) => color.code);
-          const response = await axios.post(
-            "http://127.0.0.1:8000/custom-dmc-colors/",
-            formData,
-            {
-              headers: { "Content-Type": "multipart/form-data" },
-            }
-          );
+          const response = await axios.post(`${config.apiUrl}/custom-dmc-colors`, formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
           this.processedImage = response.data.image_url;
           this.dmcCodes = response.data.dmc_codes; // List of DMC color codes
           this.hexValues = response.data.hex_values; // Corresponding hex values
@@ -169,7 +168,7 @@ export default {
           }));
         } else {
           formData.append("operation", this.operation);
-          const response = await axios.post("http://127.0.0.1:8000/process/", formData, {
+          const response = await axios.post(`${config.apiUrl}/process`, formData, {
             headers: {
               "Content-Type": "multipart/form-data",
             },
@@ -180,35 +179,97 @@ export default {
           this.colorCounts = null;
         }
       } catch (error) {
-        console.error("Error processing the image:", error);
-        alert(error.response.data.detail);
+        console.error("Error:", error);
+        alert(error.response?.data?.detail || "An error occurred");
       }
     },
   },
 };
 </script>
 
-<style>
+<style scoped>
 .upload-container {
-  max-width: 90vw;
-  margin: auto;
-
-  text-align: center;
-  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.processed-image {
-  width: 60vw;
-  max-height: 60vh;
-  -ms-interpolation-mode: nearest-neighbor;
-  object-fit: contain;
-  margin: auto;
-  display: block;
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .form-group {
+    flex-direction: row;
+    align-items: center;
+  }
+  
+  .form-group label {
+    min-width: 200px;
+    text-align: right;
+  }
 }
 
 .input-hint {
   font-size: 0.8em;
   color: #666;
-  margin-left: 8px;
+  margin-left: 0.5rem;
+}
+
+.processed-image {
+  max-width: 90vw;
+  max-height: 70vh;
+  object-fit: contain;
+  margin: auto;
+  display: block;
+}
+
+.dmc-colors-container {
+  margin-top: 2rem;
+  padding: 1rem;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.dmc-colors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+  width: 100%;
+}
+
+.dmc-color-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.color-square {
+  width: 2rem;
+  height: 2rem;
+  min-width: 2rem;  /* Ensure square shape */
+  margin-right: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.color-info {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

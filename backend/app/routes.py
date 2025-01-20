@@ -1,10 +1,10 @@
-from fastapi import APIRouter, File, UploadFile, HTTPException, Form
+from fastapi import APIRouter, File, UploadFile, HTTPException, Form, Request
 from app.image_processor import process_image, convert_to_dmc
 import os
 router = APIRouter()
 
 @router.post("/process/")
-async def process_image_route(file: UploadFile = File(...), operation: str = Form(...)):
+async def process_image_route(request: Request, file: UploadFile = File(...), operation: str = Form(...)):
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Invalid file type. Please upload an image.")
     
@@ -19,10 +19,11 @@ async def process_image_route(file: UploadFile = File(...), operation: str = For
     # Process image
     try:
         output_filename = process_image(temp_file, operation)
+        base_url = str(request.base_url).rstrip('/')
         return {
-            "message": "Image processed successfully", 
-            "image_url": f"http://127.0.0.1:8000/{output_filename}"
-            }
+            "message": "Image processed successfully",
+            "image_url": f"{base_url}/{output_filename}"
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
@@ -30,7 +31,7 @@ async def process_image_route(file: UploadFile = File(...), operation: str = For
         os.remove(temp_file)
 
 @router.post("/dmc-colors/")
-async def convert_to_dmc_colors_route(file: UploadFile = File(...), max_colors: int = Form(...), image_width: int = Form(...), use_grid_filter: bool = Form(...)):
+async def convert_to_dmc_colors_route(request: Request, file: UploadFile = File(...), max_colors: int = Form(...), image_width: int = Form(...), use_grid_filter: bool = Form(...)):
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Invalid file type. Please upload an image.")
     
@@ -44,9 +45,10 @@ async def convert_to_dmc_colors_route(file: UploadFile = File(...), max_colors: 
 
     try:
         dmc_image_path, dmc_codes, hex_values, color_counts = convert_to_dmc(temp_file, n_colors=max_colors, image_width=image_width, use_grid_filter=use_grid_filter)
+        base_url = str(request.base_url).rstrip('/')
         return {
             "message": "Image converted to DMC colors successfully",
-            "image_url": f"http://127.0.0.1:8000/{dmc_image_path}",
+            "image_url": f"{base_url}/{dmc_image_path}",
             "dmc_codes": dmc_codes,
             "hex_values": hex_values,
             "color_counts": color_counts
@@ -75,7 +77,7 @@ async def convert_to_custom_dmc_colors_route(file: UploadFile = File(...), dmc_c
         dmc_image_path, dmc_codes, hex_values, color_counts = convert_to_dmc(temp_file, selected_dmc_colors, max_colors, image_width, use_grid_filter)
         return {
             "message": "Image converted to custom DMC colors successfully",
-            "image_url": f"http://127.0.0.1:8000/{dmc_image_path}",
+            "image_url": f"http://192.168.0.30:8000/{dmc_image_path}",
             "dmc_codes": dmc_codes,
             "hex_values": hex_values,
             "color_counts": color_counts
