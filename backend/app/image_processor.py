@@ -32,7 +32,7 @@ def load_specific_dmc_colors(dmc_codes_query: list[str]) -> tuple[list[str], np.
     hex_values = [row[4] for row in rows]
     conn.close()
     # If not all DMC codes are found, raise an error
-    if len(dmc_codes) != len(dmc_codes):
+    if len(dmc_codes_query) != len(dmc_codes):
         raise ValueError(f"Not all DMC codes were found in the database. Missing codes: {set(dmc_codes_query) - set(dmc_codes)}")
     return dmc_codes, dmc_colors, hex_values
 
