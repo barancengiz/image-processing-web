@@ -1,19 +1,23 @@
 <template>
   <div class="upload-container">
-    <h1>Image Processing App</h1>
+    <h1>Select an Operation</h1>
+    
+    <!-- Navigation Bar -->
+    <nav class="nav-tabs">
+      <button 
+        v-for="op in operations" 
+        :key="op.value"
+        :class="['nav-tab', { active: operation === op.value }]"
+        @click="operation = op.value"
+      >
+        {{ op.label }}
+      </button>
+    </nav>
+
     <form @submit.prevent="submitForm">
       <div>
         <label for="image">Select an Image:</label>
         <input type="file" id="image" @change="handleFileChange" />
-      </div>
-      <div>
-        <label for="operation">Operation:</label>
-        <select id="operation" v-model="operation">
-          <option value="resize">Resize</option>
-          <option value="grayscale">Grayscale</option>
-          <option value="dmc-colors">Convert to DMC Colors</option>
-          <option value="custom-dmc-colors">Recreate with Selected DMC Colors</option>
-        </select>
       </div>
       <div v-if="operation === 'dmc-colors' || operation === 'custom-dmc-colors'">
         <label for="colorCount">Maximum # of Colors:</label>
@@ -94,6 +98,12 @@ export default {
       maxColors: 10,
       imageWidth: 100,
       useGridFilter: false,
+      operations: [
+        { value: 'resize', label: 'Resize' },
+        { value: 'grayscale', label: 'Grayscale' },
+        { value: 'dmc-colors', label: 'DMC Colors' },
+        { value: 'custom-dmc-colors', label: 'Custom DMC Colors' }
+      ],
     };
   },
   methods: {
@@ -158,7 +168,7 @@ export default {
           const response = await axios.post(`${config.apiUrl}/custom-dmc-colors`, formData, {
             headers: { "Content-Type": "multipart/form-data" },
           });
-          this.processedImage = response.data.image_url;
+          this.processedImage = `${response.data.image_url}?t=${Date.now()}`; // DMC-converted image w/ timestamp
           this.dmcCodes = response.data.dmc_codes; // List of DMC color codes
           this.hexValues = response.data.hex_values; // Corresponding hex values
           this.colorCounts = response.data.color_counts; // Number of times each DMC color is used
@@ -271,5 +281,123 @@ form {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.nav-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0 1rem;
+}
+
+.nav-tab {
+  padding: 0.75rem 1.5rem;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.nav-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-tab.active {
+  border-bottom-color: #42b883;
+  background: rgba(66, 184, 131, 0.1);
+}
+
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.color-box {
+  position: relative;
+  aspect-ratio: 1;
+}
+
+.color-preview {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.no-color {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.question-mark {
+  font-size: 1.5rem;
+  opacity: 0.5;
+}
+
+.dmc-code {
+  position: absolute;
+  bottom: 4px;
+  font-size: 0.8rem;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.remove-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 0, 0, 0.8);
+  border: none;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  line-height: 1;
+}
+
+.remove-btn:hover {
+  background: rgba(255, 0, 0, 1);
+}
+
+.color-input {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.color-input input {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+}
+
+.color-input button {
+  padding: 0.5rem 1rem;
+  background: #42b883;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+}
+
+.color-input button:hover {
+  background: #3aa876;
 }
 </style>
