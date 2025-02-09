@@ -41,18 +41,33 @@
         <input type="checkbox" id="useGridFilter" v-model="useGridFilter" />
         <span class="input-hint">(Remove grid lines)</span>
       </div>
-      <div v-if="operation === 'custom-dmc-colors'">
-        <h3>Selected DMC Colors</h3>
-        <ul>
-          <li v-for="(color, index) in selectedDmcColors" :key="index">
-            {{ color.name }} (Code: {{ color.code }})
-            <button type="button" @click="removeDmcColor(index)">Remove</button>
-          </li>
-        </ul>
-        <div>
-          <label for="newDmcColor">Add DMC Color Code:</label>
-          <input type="text" id="newDmcColor" v-model="newDmcColor" />
+      <div v-if="dmcCodes.length > 0" class="dmc-colors-container">
+        <h2>DMC Colors Used:</h2>
+        <div v-if="operation === 'custom-dmc-colors'" class="color-input">
+          <input type="text" v-model="newDmcColor" placeholder="Enter the DMC color code" />
           <button type="button" @click="addDmcColor">Add</button>
+        </div>
+        <div class="dmc-colors-grid">
+          <div v-for="(name, index) in dmcCodes" 
+            :key="index"
+            class="dmc-color-item">
+          <button v-if="operation === 'custom-dmc-colors'"
+            class="remove-color-btn"
+            @click.prevent="removeDmcColor(index)"
+            title="Remove color"
+            >x</button>
+          <div class="color-square"
+            :class="{ 'no-color': !hexValues[index] }"
+            :style="{
+              backgroundColor: hexValues[index] || 'transparent'
+            }">
+            <span v-if="!hexValues[index]" class="question-mark">?</span>
+          </div>
+          <div class="color-info">
+            DMC-{{ name }} 
+            <span v-if="colorCounts">(x{{ colorCounts[index] }})</span>
+          </div>
+          </div>
         </div>
       </div>
       <button type="submit">Process Image</button>
@@ -60,24 +75,6 @@
     <div v-if="processedImage">
       <h2>Processed Image:</h2>
       <img :src="processedImage" alt="Processed" class="processed-image" />
-    </div>
-    <div v-if="dmcCodes" class="dmc-colors-container">
-      <h2>DMC Colors Used:</h2>
-      <div class="dmc-colors-grid">
-        <div v-for="(name, index) in dmcCodes" 
-             :key="index"
-             class="dmc-color-item">
-          <div class="color-square"
-               :style="{
-                 backgroundColor: hexValues[index]
-               }">
-          </div>
-          <div class="color-info">
-            DMC-{{ name }} 
-            <span v-if="colorCounts">(x{{ colorCounts[index] }})</span>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -93,7 +90,9 @@ export default {
       operation: "resize",
       processedImage: null,
       dmcColors: null,
-      selectedDmcColors: [],
+      dmcCodes: [],
+      hexValues: [],
+      colorCounts: [],
       newDmcColor: "",
       maxColors: 10,
       imageWidth: 100,
@@ -111,18 +110,19 @@ export default {
       this.file = event.target.files[0];
     },
     addDmcColor() {
-      // Replace this with actual validation for DMC codes if needed
       if (this.newDmcColor.trim() === "") return;
-      const existing = this.selectedDmcColors.find(
-        (color) => color.code === this.newDmcColor
-      );
+      const existing = this.dmcCodes.includes(this.newDmcColor);
       if (!existing) {
-        this.selectedDmcColors.push({ name: "Custom", code: this.newDmcColor });
+        this.dmcCodes.push(this.newDmcColor);
+        this.hexValues.push(0);
+        this.colorCounts.push(0);
         this.newDmcColor = "";
       }
     },
     removeDmcColor(index) {
-      this.selectedDmcColors.splice(index, 1);
+      this.dmcCodes.splice(index, 1);
+      this.hexValues.splice(index, 1);
+      this.colorCounts.splice(index, 1);
     },
     async submitForm() {
       if (!this.file) {
@@ -131,9 +131,6 @@ export default {
       }
       // Clear the previous processed image
       this.processedImage = null;
-      this.dmcCodes = null;
-      this.hexValues = null;
-      this.colorCounts = null;
 
       const formData = new FormData();
       formData.append("file", this.file);
@@ -151,20 +148,15 @@ export default {
           this.dmcCodes = response.data.dmc_codes; // List of DMC color codes
           this.hexValues = response.data.hex_values; // Corresponding hex values
           this.colorCounts = response.data.color_counts; // Number of times each DMC color is used
-          this.selectedDmcColors = response.data.dmc_codes.map((code) => ({
-            name: "Custom",
-            code,
-          }));
         } else if (this.operation === "custom-dmc-colors") {
-          if (this.selectedDmcColors.length === 0) {
+          if (this.dmcCodes.length === 0) {
             alert("Please add at least one DMC color code.");
             return;
           }
           formData.append("max_colors", this.maxColors);
           formData.append("image_width", this.imageWidth);
           formData.append("use_grid_filter", this.useGridFilter);
-          formData.append("dmc_colors", this.selectedDmcColors.map((color) => color.code).join(","));
-          const selectedDmcCodes = this.selectedDmcColors.map((color) => color.code);
+          formData.append("dmc_colors", this.dmcCodes.join(","));
           const response = await axios.post(`${config.apiUrl}/custom-dmc-colors`, formData, {
             headers: { "Content-Type": "multipart/form-data" },
           });
@@ -172,10 +164,6 @@ export default {
           this.dmcCodes = response.data.dmc_codes; // List of DMC color codes
           this.hexValues = response.data.hex_values; // Corresponding hex values
           this.colorCounts = response.data.color_counts; // Number of times each DMC color is used
-          this.selectedDmcColors = response.data.dmc_codes.map((code) => ({
-            name: "Custom",
-            code,
-          }));
         } else {
           formData.append("operation", this.operation);
           const response = await axios.post(`${config.apiUrl}/process`, formData, {
@@ -184,12 +172,18 @@ export default {
             },
           });
           this.processedImage = response.data.image_url;
-          this.dmcCodes = null;
-          this.hexValues = null;
-          this.colorCounts = null;
+          this.dmcCodes = [];
+          this.hexValues = [];
+          this.colorCounts = [];
         }
       } catch (error) {
         console.error("Error:", error);
+        console.error("Error details:", {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          message: error.message
+        });
         alert(error.response?.data?.detail || "An error occurred");
       }
     },
@@ -245,37 +239,62 @@ form {
 }
 
 .dmc-colors-container {
-  margin-top: 2rem;
-  padding: 1rem;
+  width: 100%;
+  max-width: 60rem;
+  margin: 0 auto;
   background-color: rgba(255, 255, 255, 0.05);
-  border-radius: 4px;
+  padding: 1rem;
+}
+
+.remove-color-btn {
+  position: absolute;
+  top: -0.5rem;
+  right: -0.5rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  background: rgba(255, 0, 0, 0.8);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  font-size: 0.875rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.remove-color-btn:hover {
+  background: rgba(255, 0, 0, 1);
 }
 
 .dmc-colors-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
   gap: 1rem;
   padding: 1rem;
   width: 100%;
 }
 
 .dmc-color-item {
+  position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
   padding: 0.5rem;
+  border-radius: 0.25rem;
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 4px;
 }
 
 .color-square {
-  width: 2rem;
-  height: 2rem;
-  min-width: 2rem;  /* Ensure square shape */
-  margin-right: 0.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  width: 4rem;
+  height: 4rem;
+  border-radius: 0.25rem;
+  margin-bottom: 0.5rem;
 }
 
 .color-info {
+  font-size: 0.875rem;
   flex: 1;
   text-align: left;
   overflow: hidden;
@@ -310,91 +329,46 @@ form {
   background: rgba(66, 184, 131, 0.1);
 }
 
-.color-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.color-box {
-  position: relative;
-  aspect-ratio: 1;
-}
-
-.color-preview {
-  width: 100%;
-  height: 100%;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
 .no-color {
   background: rgba(255, 255, 255, 0.05);
 }
 
 .question-mark {
-  font-size: 1.5rem;
+  font-size: 2.5rem;
   opacity: 0.5;
-}
-
-.dmc-code {
-  position: absolute;
-  bottom: 4px;
-  font-size: 0.8rem;
-  background: rgba(0, 0, 0, 0.5);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.remove-btn {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: rgba(255, 0, 0, 0.8);
-  border: none;
-  color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  font-size: 14px;
-  padding: 0;
-  line-height: 1;
-}
-
-.remove-btn:hover {
-  background: rgba(255, 0, 0, 1);
 }
 
 .color-input {
   display: flex;
   gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0 1rem;
+  width: 100%;
+  max-width: 30rem;
+  margin: 0 auto 1rem auto;
 }
 
 .color-input input {
   flex: 1;
   padding: 0.5rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
+  border-radius: 0.25rem;
   background: rgba(255, 255, 255, 0.05);
   color: inherit;
+  font-size: 1rem;
 }
 
 .color-input button {
   padding: 0.5rem 1rem;
   background: #42b883;
   border: none;
-  border-radius: 4px;
+  border-radius: 0.25rem;
   color: white;
   cursor: pointer;
+  font-size: 1rem;
 }
 
 .color-input button:hover {
