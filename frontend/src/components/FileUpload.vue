@@ -70,6 +70,20 @@
           </div>
         </div>
       </div>
+      <div v-if="operation === 'custom-dmc-colors'">
+        <h3>Selected DMC Colors</h3>
+        <ul>
+          <li v-for="(color, index) in selectedDmcColors" :key="index">
+            {{ color.name }} (Code: {{ color.code }})
+            <button type="button" @click="removeDmcColor(index)">Remove</button>
+          </li>
+        </ul>
+        <div>
+          <label for="newDmcColor">Add DMC Color Code:</label>
+          <input type="text" id="newDmcColor" v-model="newDmcColor" />
+          <button type="button" @click="addDmcColor">Add</button>
+        </div>
+      </div>
       <button type="submit">Process Image</button>
     </form>
     <div v-if="processedImage">

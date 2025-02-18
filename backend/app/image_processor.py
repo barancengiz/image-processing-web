@@ -25,6 +25,7 @@ def load_specific_dmc_colors(dmc_codes_query: list[str]) -> tuple[list[str], np.
     placeholders = ", ".join("?" * len(dmc_codes_query))
     query = f"SELECT DMC_CODE, R, G, B, HEX FROM dmc_colors WHERE DMC_CODE IN ({placeholders})"
     cursor.execute(query, dmc_codes_query)
+
     rows = cursor.fetchall()
     # Create three arrays with DMC codes, RGB values, and HEX values
     dmc_codes = [row[0] for row in rows]
@@ -43,6 +44,7 @@ def rgb_to_hsv(rgb: tuple[int, int, int]) -> tuple[int, int, int]:
 
 def convert_image_to_dmc_colors(img: np.ndarray, selected_dmc_codes: list[str] = None, n_colors: int = 50, image_width: int = 1000, use_grid_filter: bool = False) -> tuple[np.ndarray, set[str], set[str]]:
     @lru_cache(maxsize=2048)  # Cache the results of this function
+
     def find_closest_dmc_color_idx(selected_rgb_color: tuple[int, int, int]) -> int:
         # Calculate Euclidean distance to each DMC color
         distances = np.linalg.norm(dmc_colors - np.array(selected_rgb_color), axis=1)
@@ -128,6 +130,7 @@ def process_image(file_path: str, operation: str) -> str:
 def convert_to_dmc(file_path: str, selected_dmc_codes: list[str] = None, n_colors: int = 50, image_width: int = 1000, use_grid_filter: bool = False) -> tuple[str, list[str], list[str]]:
     img = cv2.imread(file_path)
     img, dmc_codes, hex_values, color_counts = convert_image_to_dmc_colors(img, selected_dmc_codes, n_colors, image_width, use_grid_filter)
+
     dmc_image_path = f"processed/dmc_{file_path}"
     cv2.imwrite(dmc_image_path, img)
     return dmc_image_path, dmc_codes, hex_values, color_counts
