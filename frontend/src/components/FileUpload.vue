@@ -15,7 +15,7 @@
     </nav>
 
     <form @submit.prevent="submitForm">
-      <div>
+      <div v-if="operation !== 'visualize'">
         <label for="image">Select an Image:</label>
         <input type="file" id="image" @change="handleFileChange" />
       </div>
@@ -70,23 +70,15 @@
           </div>
         </div>
       </div>
-      <div v-if="operation === 'custom-dmc-colors'">
-        <h3>Selected DMC Colors</h3>
-        <ul>
-          <li v-for="(color, index) in selectedDmcColors" :key="index">
-            {{ color.name }} (Code: {{ color.code }})
-            <button type="button" @click="removeDmcColor(index)">Remove</button>
-          </li>
-        </ul>
-        <div>
-          <label for="newDmcColor">Add DMC Color Code:</label>
-          <input type="text" id="newDmcColor" v-model="newDmcColor" />
-          <button type="button" @click="addDmcColor">Add</button>
-        </div>
-      </div>
-      <button type="submit">Process Image</button>
+      <button v-if="operation !== 'visualize'" type="submit">Process Image</button>
     </form>
-    <div v-if="processedImage">
+    <div v-if="processedImage && operation === 'visualize'">
+      <GridVisualization 
+        :imageUrl="processedImage" 
+        :pixelWidth="imageWidth" 
+      />
+    </div>
+    <div v-else-if="processedImage">
       <h2>Processed Image:</h2>
       <img :src="processedImage" alt="Processed" class="processed-image" />
     </div>
@@ -96,8 +88,12 @@
 <script>
 import axios from "axios";
 import { config } from "../config";
+import GridVisualization from "./GridVisualization.vue";
 
 export default {
+  components: {
+    GridVisualization
+  },
   data() {
     return {
       file: null,
@@ -115,7 +111,8 @@ export default {
         { value: 'resize', label: 'Resize' },
         { value: 'grayscale', label: 'Grayscale' },
         { value: 'dmc-colors', label: 'DMC Colors' },
-        { value: 'custom-dmc-colors', label: 'Custom DMC Colors' }
+        { value: 'custom-dmc-colors', label: 'Custom DMC Colors' },
+        { value: 'visualize', label: 'Visualize' }
       ],
     };
   },
@@ -178,6 +175,16 @@ export default {
           this.dmcCodes = response.data.dmc_codes; // List of DMC color codes
           this.hexValues = response.data.hex_values; // Corresponding hex values
           this.colorCounts = response.data.color_counts; // Number of times each DMC color is used
+        } else if (this.operation === 'visualize') {
+          // Use the original image directly
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            this.processedImage = e.target.result;
+          };
+          reader.readAsDataURL(this.file);
+          this.dmcCodes = [];
+          this.hexValues = [];
+          this.colorCounts = [];
         } else {
           formData.append("operation", this.operation);
           const response = await axios.post(`${config.apiUrl}/process`, formData, {
