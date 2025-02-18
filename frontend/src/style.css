@@ -77,3 +77,73 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+/* Add responsive container styles */
+.upload-container {
+  max-width: 90vw;
+  margin: auto;
+  padding: 1rem;
+}
+
+/* Update processed image styles */
+.processed-image {
+  max-width: 90vw;
+  max-height: 70vh;
+  object-fit: contain;
+  margin: auto;
+  display: block;
+}
+
+/* Add responsive grid for DMC colors */
+.dmc-colors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+  width: 100%;
+}
+
+.dmc-color-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.color-square {
+  width: 2rem;
+  height: 2rem;
+  min-width: 2rem;  /* Ensure square shape */
+  margin-right: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.color-info {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Add responsive form styles */
+.form-group {
+  margin: 1rem 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .dmc-colors-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .dmc-colors-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  }
+}
