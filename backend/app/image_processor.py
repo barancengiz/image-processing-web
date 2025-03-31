@@ -44,21 +44,20 @@ def rgb_to_hsv(rgb: tuple[int, int, int]) -> tuple[int, int, int]:
 
 def convert_image_to_dmc_colors(img: np.ndarray, selected_dmc_codes: list[str] = None, n_colors: int = 50, image_width: int = 1000, use_grid_filter: bool = False) -> tuple[np.ndarray, set[str], set[str]]:
     @lru_cache(maxsize=2048)  # Cache the results of this function
-
     def find_closest_dmc_color_idx(selected_rgb_color: tuple[int, int, int]) -> int:
         # Calculate Euclidean distance to each DMC color
         distances = np.linalg.norm(dmc_colors - np.array(selected_rgb_color), axis=1)
         # Return the index of the closest color
         return np.argmin(distances)
     time_start = time.time()
-    width, height = img.shape[:2]
+    height, width = img.shape[:2]
     # Bilateral filter to smooth image
     img = cv2.bilateralFilter(img, 5, 75, 75)
     if use_grid_filter:
         img = cv2.medianBlur(img, 3)        
     # Resize image
     img = cv2.resize(img, (image_width, int(image_width * height / width)), interpolation=cv2.INTER_NEAREST)
-    width, height = img.shape[:2]
+    height, width = img.shape[:2]
 
     # Convert image to RGB
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -93,7 +92,7 @@ def convert_image_to_dmc_colors(img: np.ndarray, selected_dmc_codes: list[str] =
     time_elapsed = time.time() - time_start
     print(f"Processed {len(img)} pixels in {time_elapsed:.2} seconds")
     # Reshape to original image dimensions
-    img = img.reshape(width, height, 3)
+    img = img.reshape(height, width, 3)
     # Convert image back to BGR
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     # Resize into displayable size
