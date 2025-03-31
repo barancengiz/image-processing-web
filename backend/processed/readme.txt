@@ -1,0 +1,1 @@
+Processed images goes here, you might want to delete these files after user exits or delete all files periodically.
