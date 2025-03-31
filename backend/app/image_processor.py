@@ -33,7 +33,7 @@ def load_specific_dmc_colors(dmc_codes_query: list[str]) -> tuple[list[str], np.
     hex_values = [row[4] for row in rows]
     conn.close()
     # If not all DMC codes are found, raise an error
-    if len(dmc_codes_query) != len(dmc_codes):
+    if len(set(dmc_codes_query) - set(dmc_codes)):
         raise ValueError(f"Not all DMC codes were found in the database. Missing codes: {set(dmc_codes_query) - set(dmc_codes)}")
     return dmc_codes, dmc_colors, hex_values
 
@@ -94,9 +94,9 @@ def convert_image_to_dmc_colors(img: np.ndarray,
         color_idx = find_closest_dmc_color_idx(tuple(rgb_color))
         # If the color is in the replaced colors dict, use the replaced color
         if dmc_codes[color_idx] in replaced_colors_dict.keys():
-            color_idx_rep = list(replaced_colors_dict.keys()).index(dmc_codes[color_idx])
+            dmc_code = replaced_colors_dict[dmc_codes[color_idx]]
+            color_idx_rep = dmc_codes_rep.index(dmc_code)
             img[i] = dmc_colors_rep[color_idx_rep]
-            dmc_code = dmc_codes_rep[color_idx_rep]
             if dmc_code not in used_dmc_codes:
                 used_dmc_codes.append(dmc_code)
                 used_hex_values.append(hex_values_rep[color_idx_rep])

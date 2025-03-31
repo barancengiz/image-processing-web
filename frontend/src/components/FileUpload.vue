@@ -217,6 +217,7 @@ export default {
           this.dmcCodes = response.data.dmc_codes; // List of DMC color codes
           this.hexValues = response.data.hex_values; // Corresponding hex values
           this.colorCounts = response.data.color_counts; // Number of times each DMC color is used
+          this.replacedColors = {}; // Reset replaced colors
         } else if (this.operation === 'visualize') {
           // Use the original image directly
           const reader = new FileReader();
