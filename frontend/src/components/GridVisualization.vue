@@ -1,6 +1,8 @@
 <template>
     <div class="reset-container">
         <button @click="resetZoom">Reset View</button>
+        <button @click="zoomIn">Zoom In</button>
+        <button @click="zoomOut">Zoom Out</button>
     </div>
     <div class="visualization-container" 
     @wheel="handleZoom"
@@ -58,6 +60,22 @@ export default {
       this.scale = 1;
       this.panX = 0;
       this.panY = 0;
+      this.drawGrid();
+    },
+    zoomIn() {
+      this.scale *= 1.1;
+      // Limit zoom levels
+      this.scale = Math.min(Math.max(0.1, this.scale), 10);
+      // Make scale times width a whole number
+      this.scale = Math.round(this.scale * this.$refs.image.width) / this.$refs.image.width;
+      this.drawGrid();
+    },
+    zoomOut() {
+      this.scale *= 0.9;
+      // Limit zoom levels
+      this.scale = Math.min(Math.max(0.1, this.scale), 10);
+      // Make scale times width a whole number
+      this.scale = Math.round(this.scale * this.$refs.image.width) / this.$refs.image.width;
       this.drawGrid();
     },
     handleZoom(event) {
@@ -196,6 +214,9 @@ canvas {
 }
 
 .reset-container {
+  position: relative;
+}
+.max-zoom-container {
   position: relative;
 }
 </style>

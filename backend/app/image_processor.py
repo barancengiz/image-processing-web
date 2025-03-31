@@ -139,7 +139,6 @@ def convert_image_to_dmc_colors(img: np.ndarray,
 def process_image(file_path: str, operation: str) -> str:
     output_path = f"processed/{operation}_{file_path}"
     if operation == "resize":
-        # Resize example with Pillow
         img = cv2.imread(file_path)
         width_height_ratio = img.shape[1] / img.shape[0]
         resize_large_side = 240
