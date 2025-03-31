@@ -41,13 +41,13 @@
         <input type="checkbox" id="useGridFilter" v-model="useGridFilter" />
         <span class="input-hint">(Remove grid lines)</span>
       </div>
-      <div v-if="dmcCodes.length > 0" class="dmc-colors-container">
+      <div v-if="operation === 'dmc-colors' || operation === 'custom-dmc-colors' || operation === 'visualize'" class="dmc-colors-container">
         <h2>DMC Colors Used:</h2>
         <div v-if="operation === 'custom-dmc-colors'" class="color-input">
           <input type="text" v-model="newDmcColor" placeholder="Enter the DMC color code" />
           <button type="button" @click="addDmcColor">Add</button>
         </div>
-        <div class="dmc-colors-grid">
+        <div v-if="dmcCodes.length > 0" class="dmc-colors-grid">
           <div v-for="(name, index) in dmcCodes" 
             :key="index"
             class="dmc-color-item">
