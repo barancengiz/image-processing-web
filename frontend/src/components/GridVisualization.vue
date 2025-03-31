@@ -69,7 +69,7 @@ export default {
       this.scale = Math.min(Math.max(0.1, this.scale), 10);
 
       // Make scale times width a whole number
-      // this.scale = Math.round(this.scale * this.$refs.image.width) / this.$refs.image.width;
+      this.scale = Math.round(this.scale * this.$refs.image.width) / this.$refs.image.width;
       
       this.drawGrid();
     },
