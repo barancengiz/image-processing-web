@@ -209,6 +209,7 @@ export default {
           formData.append("image_width", this.imageWidth);
           formData.append("use_grid_filter", this.useGridFilter);
           formData.append("dmc_colors", this.dmcCodes.join(","));
+          formData.append("replaced_colors", JSON.stringify(this.replacedColors));
           const response = await axios.post(`${config.apiUrl}/custom-dmc-colors`, formData, {
             headers: { "Content-Type": "multipart/form-data" },
           });
