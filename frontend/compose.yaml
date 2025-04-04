@@ -4,3 +4,11 @@ services:
     build: .
     ports:
       - "0.0.0.0:3000:80"
+  frontend-dev:
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+    ports:
+      - "0.0.0.0:5173:5173"
+    volumes:
+      - .:/app
