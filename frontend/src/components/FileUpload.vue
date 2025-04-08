@@ -1,7 +1,6 @@
 <template>
   <div class="upload-container">
     <h1>Select an Operation</h1>
-    
     <!-- Navigation Bar -->
     <nav class="nav-tabs">
       <button 
@@ -90,7 +89,7 @@
       </div>
       <button v-if="operation !== 'visualize'" type="submit">Process Image</button>
     </form>
-    <div v-if="processedImage && operation === 'visualize'">
+    <div v-if="processedImage && operation === 'visualize'" id="element-to-convert">
       <GridVisualization 
         :imageUrl="processedImage" 
         :pixelWidth="imageWidth" 
@@ -100,6 +99,7 @@
       <h2>Processed Image:</h2>
       <img :src="processedImage" alt="Processed" class="processed-image" />
     </div>
+    <button @click="exportToPDF">Export to PDF</button>
   </div>
 </template>
 
@@ -107,6 +107,8 @@
 import axios from "axios";
 import { config } from "../config";
 import GridVisualization from "./GridVisualization.vue";
+
+import html2pdf from "html2pdf.js";
 
 export default {
   components: {
@@ -251,6 +253,13 @@ export default {
         alert(error.response?.data?.detail || "An error occurred");
       }
     },
+
+    exportToPDF() {
+      const element = document.getElementById('element-to-convert');
+      console.log(element)
+
+      html2pdf().from(element).save()
+    }
   },
 };
 </script>
