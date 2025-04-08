@@ -33,7 +33,7 @@ def load_specific_dmc_colors(dmc_codes_query: list[str]) -> tuple[list[str], np.
     hex_values = [row[4] for row in rows]
     conn.close()
     # If not all DMC codes are found, raise an error
-    if len(dmc_codes_query) != len(dmc_codes):
+    if len(set(dmc_codes_query) - set(dmc_codes)):
         raise ValueError(f"Not all DMC codes were found in the database. Missing codes: {set(dmc_codes_query) - set(dmc_codes)}")
     return dmc_codes, dmc_colors, hex_values
 
@@ -42,7 +42,12 @@ def rgb_to_hsv(rgb: tuple[int, int, int]) -> tuple[int, int, int]:
     hsv_array = cv2.cvtColor(rgb_array, cv2.COLOR_RGB2HSV)
     return tuple(hsv_array[0, 0])
 
-def convert_image_to_dmc_colors(img: np.ndarray, selected_dmc_codes: list[str] = None, n_colors: int = 50, image_width: int = 1000, use_grid_filter: bool = False) -> tuple[np.ndarray, set[str], set[str]]:
+def convert_image_to_dmc_colors(img: np.ndarray, 
+                               selected_dmc_codes: list[str] = None, 
+                               replaced_colors_dict: dict = {}, 
+                               n_colors: int = 50, 
+                               image_width: int = 1000, 
+                               use_grid_filter: bool = False) -> tuple[np.ndarray, set[str], set[str]]:
     @lru_cache(maxsize=2048)  # Cache the results of this function
     def find_closest_dmc_color_idx(selected_rgb_color: tuple[int, int, int]) -> int:
         # Calculate Euclidean distance to each DMC color
@@ -69,28 +74,58 @@ def convert_image_to_dmc_colors(img: np.ndarray, selected_dmc_codes: list[str] =
 
     # Get unique DMC numbers and their numeric values
     dmc_codes, dmc_colors, hex_values = load_all_dmc_colors() if selected_dmc_codes is None else load_specific_dmc_colors(selected_dmc_codes)
+    # For each dmc code in replaced colors dict, get dmc_color and hex value
+    if replaced_colors_dict is None:
+        dmc_codes_rep, dmc_colors_rep, hex_values_rep = None, None, None
+        replaced_colors_dict = {}
+    else:
+        dmc_codes_rep, dmc_colors_rep, hex_values_rep = load_specific_dmc_colors(list(replaced_colors_dict.values()))
 
     # Save used unique colors and their hex values
-    used_dmc_colors = set()
-    used_color_idxs = set()
+    used_dmc_codes = []
+    used_dmc_colors = []
+    used_hex_values = []
+    used_hsv_values = []
     # Count the number of times each DMC color is used
-    color_counts = {}
+    used_color_counts = {}
+
     # Find closest DMC color for each pixel
     for i, rgb_color in enumerate(img):
         color_idx = find_closest_dmc_color_idx(tuple(rgb_color))
-        img[i] = dmc_colors[color_idx]
-        if color_idx not in used_color_idxs:
-            used_color_idxs.add(color_idx)
-            hsv_value = rgb_to_hsv(dmc_colors[color_idx])
-            used_dmc_colors.add((dmc_codes[color_idx], hsv_value, hex_values[color_idx]))
-            color_counts[dmc_codes[color_idx]] = 1
+        # If the color is in the replaced colors dict, use the replaced color
+        if dmc_codes[color_idx] in replaced_colors_dict.keys():
+            dmc_code = replaced_colors_dict[dmc_codes[color_idx]]
+            color_idx_rep = dmc_codes_rep.index(dmc_code)
+            img[i] = dmc_colors_rep[color_idx_rep]
+            if dmc_code not in used_dmc_codes:
+                used_dmc_codes.append(dmc_code)
+                used_hex_values.append(hex_values_rep[color_idx_rep])
+                used_dmc_colors.append(dmc_colors_rep[color_idx_rep])
+                used_hsv_values.append(rgb_to_hsv(dmc_colors_rep[color_idx_rep]))
+                used_color_counts[dmc_code] = 1
+            else:
+                used_color_counts[dmc_code] += 1
+        # If the color is not in the replaced colors dict, use the original DMC color
         else:
-            color_counts[dmc_codes[color_idx]] += 1
-    # Add the number of times each DMC color is used to the set of used DMC colors
-    # TODO: This can be optimized
-    used_dmc_colors = [(dmc_codes[color_idx], hsv_value, hex_values[color_idx], color_counts[dmc_codes[color_idx]]) for color_idx in used_color_idxs]
+            img[i] = dmc_colors[color_idx]
+            if dmc_codes[color_idx] not in used_dmc_codes:
+                used_dmc_codes.append(dmc_codes[color_idx])
+                used_hex_values.append(hex_values[color_idx])
+                used_dmc_colors.append(dmc_colors[color_idx])
+                used_hsv_values.append(rgb_to_hsv(dmc_colors[color_idx]))
+                used_color_counts[dmc_codes[color_idx]] = 1
+            else:
+                used_color_counts[dmc_codes[color_idx]] += 1
+    # Sort by hue values
+    hsv_value_sorted_idxs = np.argsort([hsv[0] for hsv in used_hsv_values])
+    # Get the sorted DMC codes, hex values, and color counts
+    used_dmc_codes = [used_dmc_codes[i] for i in hsv_value_sorted_idxs]
+    used_hex_values = [used_hex_values[i] for i in hsv_value_sorted_idxs]
+    used_color_counts = [used_color_counts[used_dmc_codes[i]] for i in hsv_value_sorted_idxs]
+
     time_elapsed = time.time() - time_start
     print(f"Processed {len(img)} pixels in {time_elapsed:.2} seconds")
+    
     # Reshape to original image dimensions
     img = img.reshape(height, width, 3)
     # Convert image back to BGR
@@ -98,16 +133,12 @@ def convert_image_to_dmc_colors(img: np.ndarray, selected_dmc_codes: list[str] =
     # Resize into displayable size
     display_width = 1024
     img = cv2.resize(img, (display_width, int(display_width * height / width)), interpolation=cv2.INTER_NEAREST)
-    # Sort set by hue values
-    used_dmc_colors = sorted(used_dmc_colors, key=lambda x: x[1][0])
-    # Split set of tuples into two sets
-    dmc_codes, _, hex_values, color_counts = zip(*used_dmc_colors)
-    return img, dmc_codes, hex_values, color_counts
+    
+    return img, used_dmc_codes, used_hex_values, used_color_counts
 
 def process_image(file_path: str, operation: str) -> str:
     output_path = f"processed/{operation}_{file_path}"
     if operation == "resize":
-        # Resize example with Pillow
         img = cv2.imread(file_path)
         width_height_ratio = img.shape[1] / img.shape[0]
         resize_large_side = 240
@@ -126,9 +157,19 @@ def process_image(file_path: str, operation: str) -> str:
         raise ValueError(f"Unsupported operation: {operation}. Supported operations: 'resize', 'grayscale'")
     return output_path
 
-def convert_to_dmc(file_path: str, selected_dmc_codes: list[str] = None, n_colors: int = 50, image_width: int = 1000, use_grid_filter: bool = False) -> tuple[str, list[str], list[str]]:
+def convert_to_dmc(file_path: str, 
+                  selected_dmc_codes: list[str] = None, 
+                  replaced_colors_dict: dict = {}, 
+                  n_colors: int = 50, 
+                  image_width: int = 1000, 
+                  use_grid_filter: bool = False) -> tuple[str, list[str], list[str]]:
     img = cv2.imread(file_path)
-    img, dmc_codes, hex_values, color_counts = convert_image_to_dmc_colors(img, selected_dmc_codes, n_colors, image_width, use_grid_filter)
+    img, dmc_codes, hex_values, color_counts = convert_image_to_dmc_colors(img, 
+                                                                          selected_dmc_codes, 
+                                                                          replaced_colors_dict,
+                                                                          n_colors, 
+                                                                          image_width, 
+                                                                          use_grid_filter)
 
     dmc_image_path = f"processed/dmc_{file_path}"
     cv2.imwrite(dmc_image_path, img)

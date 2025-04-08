@@ -41,11 +41,18 @@
         <input type="checkbox" id="useGridFilter" v-model="useGridFilter" />
         <span class="input-hint">(Remove grid lines)</span>
       </div>
-      <div v-if="operation === 'dmc-colors' || operation === 'custom-dmc-colors' || operation === 'visualize'" class="dmc-colors-container">
+      <div v-if="processedImage && operation === 'dmc-colors' || operation === 'custom-dmc-colors' || operation === 'visualize'" class="dmc-colors-container">
         <h2>DMC Colors Used:</h2>
         <div v-if="operation === 'custom-dmc-colors'" class="color-input">
           <input type="text" v-model="newDmcColor" placeholder="Enter the DMC color code" />
           <button type="button" @click="addDmcColor">Add</button>
+          <button type="button" @click="toggleReplaceMode" 
+                  :class="{'active': isReplaceMode}">
+            {{ isReplaceMode ? 'Cancel Replace' : 'Replace' }}
+          </button>
+        </div>
+        <div v-if="isReplaceMode" class="replace-instructions">
+          Click on a color to replace it with DMC-{{ newDmcColor || '???' }}
         </div>
         <div v-if="dmcCodes.length > 0" class="dmc-colors-grid">
           <div v-for="(name, index) in dmcCodes" 
@@ -57,16 +64,27 @@
             title="Remove color"
             >x</button>
           <div class="color-square"
-            :class="{ 'no-color': !hexValues[index] }"
+            :class="{ 
+              'no-color': !hexValues[index], 
+              'clickable': isReplaceMode,
+              'highlight': isReplaceMode 
+            }"
             :style="{
               backgroundColor: hexValues[index] || 'transparent'
-            }">
+            }"
+            @click="isReplaceMode && replaceColor(index)">
             <span v-if="!hexValues[index]" class="question-mark">?</span>
           </div>
-          <div class="color-info">
-            DMC-{{ name }} 
-            <span v-if="colorCounts">(x{{ colorCounts[index] }})</span>
-          </div>
+            <div class="color-info">
+            <span v-if="replacedColors[name]">
+              DMC-{{ replacedColors[name] }}
+              <span class="replaced-indicator">(was {{ name }})</span>
+            </span>
+            <span v-else>
+              DMC-{{ name }}
+              <span v-if="colorCounts">(x{{ colorCounts[index] }})</span>
+            </span>
+            </div>
           </div>
         </div>
       </div>
@@ -107,6 +125,8 @@ export default {
       maxColors: 10,
       imageWidth: 100,
       useGridFilter: false,
+      isReplaceMode: false,
+      replacedColors: {},
       operations: [
         { value: 'resize', label: 'Resize' },
         { value: 'grayscale', label: 'Grayscale' },
@@ -134,6 +154,27 @@ export default {
       this.dmcCodes.splice(index, 1);
       this.hexValues.splice(index, 1);
       this.colorCounts.splice(index, 1);
+    },
+    toggleReplaceMode() {
+      this.isReplaceMode = !this.isReplaceMode;
+    },
+    replaceColor(index) {
+      if (!this.newDmcColor.trim()) {
+        alert("Please enter a DMC color code to replace with.");
+        return;
+      }
+      
+      const originalColor = this.dmcCodes[index];
+      
+      if (originalColor === this.newDmcColor) {
+        alert("Cannot replace with the same color code.");
+        return;
+      }
+      
+      this.replacedColors[originalColor] = this.newDmcColor;
+      
+      this.newDmcColor = "";
+      this.isReplaceMode = false;
     },
     async submitForm() {
       if (!this.file) {
@@ -168,6 +209,7 @@ export default {
           formData.append("image_width", this.imageWidth);
           formData.append("use_grid_filter", this.useGridFilter);
           formData.append("dmc_colors", this.dmcCodes.join(","));
+          formData.append("replaced_colors", JSON.stringify(this.replacedColors));
           const response = await axios.post(`${config.apiUrl}/custom-dmc-colors`, formData, {
             headers: { "Content-Type": "multipart/form-data" },
           });
@@ -175,6 +217,7 @@ export default {
           this.dmcCodes = response.data.dmc_codes; // List of DMC color codes
           this.hexValues = response.data.hex_values; // Corresponding hex values
           this.colorCounts = response.data.color_counts; // Number of times each DMC color is used
+          this.replacedColors = {}; // Reset replaced colors
         } else if (this.operation === 'visualize') {
           // Use the original image directly
           const reader = new FileReader();
@@ -394,5 +437,43 @@ form {
 
 .color-input button:hover {
   background: #3aa876;
+}
+
+.clickable {
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.clickable:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+.highlight {
+  border: 2px dashed rgba(255, 255, 255, 0.6);
+}
+
+.replace-instructions {
+  text-align: center;
+  margin: 1rem 0;
+  padding: 0.5rem;
+  background-color: rgba(66, 184, 131, 0.2);
+  border-radius: 0.25rem;
+  color: #42b883;
+}
+
+.replaced-indicator {
+  font-size: 0.75rem;
+  color: #ff9800;
+  font-style: italic;
+  margin-left: 0.25rem;
+}
+
+button.active {
+  background-color: #e74c3c;
+}
+
+button.active:hover {
+  background-color: #c0392b;
 }
 </style>
